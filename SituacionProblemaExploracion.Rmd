@@ -1,0 +1,354 @@
+---
+title: "Situacion Problema 1"
+author: "Ivan Romero"
+date: "7/3/2022"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Situación problema
+
+Tan solo en México, alrededor de 9,300 personas mueren anualmente por causa de la contaminación en grandes ciudades. La contaminación es sin duda alguna, uno de los mayores problemas con los que contamos actualmente como sociedad, ya que este mismo, conlleva múltiples otras consecuencias, como alteraciones a la salud, problemas económicos, sociales, entre otros. 
+
+![](contaminacion.jpg)
+El Dióxido de Nitrógeno es uno de los mayores contaminantes en la actualidad, ya que es producto del exceso de automóviles, efectos negativos de la industria y la calefacción en los hogares y edificios. Es sumamente dañino a la salud en niveles excesivos y puede llegar hasta causar la muerte.
+
+En este proyecto, se analizará una muestra de mediciones de contaminación en la Ciudad de México, para encontrar el comportamiento y relación de ciertos contaminantes presentes en el aire.
+
+## Lectura de datos
+```{r}
+db = read.csv('SP6-MGH2021.csv')
+head(db)
+summary(db)
+```
+La base de datos presentada, contiene 6 variables numéricas, con la información de los gases en cuestión. Así como una variable categórica ('FECHA'), y dos variables continuas('X' y 'HORA').
+
+## Muestreo
+```{r}
+#indice = sample(1:length(db$FECHA), 1000, replace = FALSE)
+#dbMuestra = db[indice,]
+#write.csv(dbMuestra, 'SP6muestra.csv')
+```
+
+Hacemos una lectura de datos de nuestra muestra.
+```{r}
+dbM = read.csv('SP6muestra.csv')
+```
+
+Para analizar y visualizar las correlaciones de los datos, se seleccionarán únicamente las variables numéricas discretas:
+#### seleción de las columnas haciendo uso de la librería dplyr
+hacemos uso de la librería de dplyr para seleccionar únicamente las columnas con valores numérico que nos sean de utilidad.
+```{r}
+library(dplyr)
+DB2 = select(dbM, -X, -FECHA, -HORA, -X.1)
+```
+Una vez obtenidos los datos, se analizarán las correlaciones entre nuestras variables representando las mediciones de los contaminantes en cuestión.
+#### Visualización gráfica de las correlaciones
+```{r}
+plot(DB2)
+```
+
+#### Tabla de correlaciones:
+```{r}
+corr = cor(DB2)
+corr
+```
+
+```{r}
+library('plot.matrix')
+plot(as.assoc(corr), col = c('blue','green','cyan','yellow')) ## Esta es la buena
+```
+Como se mencionó anteriormente, este análisis se centrará en el \(NO_2\), ya que la CDMX, presenta un gran producción del mismo, producto del tráfico exesivo y la alta concentración de industria con efectos dañinos en el ambiente.
+
+Tomando a \(NO_2\) como nuestro término dependiente
+Término independiente principal \(CO\)
+Segundo término independiente: \(O_3\)
+
+### Visualización de los datos
+```{r}
+plot(DB2$NO2 ~ DB2$CO + DB2$O3 + DB2$CO2)
+plot(DB2$CO + DB2$O3 + DB2$CO2,DB2$NO2)
+```
+Como se puede observar en las gráficas anteriores, existen ciertas variables que si sostienen una alta correlación con el \(NO_2\) como lo puede ser \(CO\). Pero por otro lado, en suma, nuestros datos tienen una tendencia que puede llegar a ser muy difusa. De igual manera, se harán los modelos de regresión lineal para observar si un modelo se puede ajustar a nuestros datos.
+## Modelo lineal
+
+```{r}
+mod = lm(DB2$NO2 ~ DB2$CO + DB2$O3 + DB2$CO2)
+summary(mod)
+mod
+```
+Observamos que todas nuestras \(\beta\)'s son significativas y tenemos un coeficiente \(R^2 = 0.59\)
+
+Una vez obtenido nuestro modelo lineal, analizamos nuestros residuos para evaluar la eficiencia del mismo.
+
+## Analisis de los residuos
+
+\[H_0: \overline{x}_{res} = 0\]
+\[H_1: \overline{x}_{res} \neq 0\]
+\[\alpha = 0.05\]
+
+```{r}
+t.test(mod$residuals)
+```
+Como el valor \[p = 1 > \alpha = 0.05\], no se rechaza \[H_0\]
+
+### visualización de los residuos
+
+```{r}
+plot(mod$fitted.values,mod$residuals)
+abline(h = 0)
+```
+Notamos tendencia en los residuos, de forma parabólica, por lo tanto, más adelante se propondrá un modelo cuadrático.
+
+### Prueba de normalidad
+
+\(H_0:\) Los  residuos se distribuyen normalmente.
+\(H_1:\) Los  residuos no se distribuyen normalmente.
+
+```{r}
+library(nortest)
+ad.test(mod$residuals)
+```
+
+Como el valor \(p < \alpha =0.05\) se rechaza  \(H_0\).
+
+### Distribución de los residuos
+```{r}
+hist(mod$residuals)
+```
+Los residuos no se distribuyen de manera normal.
+
+## Modelo cuadrático
+
+```{r}
+y = DB2$NO2
+z1 = DB2$CO
+z2 = DB2$O3
+z3 = DB2$CO2
+z12 = z1^2
+z22 = z2^2
+z32 = z3^2
+mod2 = lm(y ~ z1 + z2 + z3 + z12 + z22 + z32)
+summary(mod2)
+mod2
+```
+
+
+Como podemos apreciar, nuevamente en nuestro modelo, se obtienen \(\beta\)'s significativas, y así mismo, se obtiene un mejor resultado para \(R^2\)
+
+## Analisis de los residuos
+
+\[H_0: \overline{x}_{res} = 0\]
+\[H_1: \overline{x}_{res} \neq 0\]
+\[\alpha = 0.05\]
+
+```{r}
+t.test(mod2$residuals)
+```
+Como el valor \[p = 1 > \alpha = 0.05\], no se rechaza \[H_0\]
+
+### visualización de los residuos
+
+```{r}
+plot(mod2$fitted.values,mod$residuals)
+abline(h = 0, col = 'red')
+```
+Los residuos se distribuyen de manera más uniforme que en nuestro modelo anterior y no se observa una tendencia clara.
+
+
+### Prueba de normalidad
+
+\(H_0:\) Los  residuos se distribuyen normalmente.
+\(H_1:\) Los  residuos no se distribuyen normalmente.
+
+```{r}
+library(nortest)
+ad.test(mod2$residuals)
+```
+
+Como el valor \(p < \alpha =0.05\) se rechaza  \(H_0\).
+
+### Distribución de los residuos
+```{r}
+hist(mod2$residuals)
+```
+Los residuos se distribuyen de manera más uniforme que en nuestro modelo anterior, más no de una forma normal.
+
+## intentando una serie de tiempo con respecto a \(NO_2\)
+
+dado que para una serie de tiempo requerimos valores continuos, volveremos a usar la base de datos general.
+
+```{r}
+placeHolder = db[order(db$FECHA,db$HORA),]
+tsDataF = data.frame(Fecha = placeHolder$FECHA,Hora = placeHolder$HORA,NO2 = placeHolder$NO2)
+plot(tsDataF$NO2)
+plot(tsDataF$NO2[1:24])
+```
+Se observa una gran difusión para todos nuestros datos, pero observando de 'cerca', resulta más claro que es posible que existe una tendencia.
+### limpieza de datos
+dado que se observa que existen una gran cantidad de datos que están muy alejados del resto de valores, se limpian los datos que quedan fuera de aproximadamente el 5%
+```{r}
+ds = sd(tsDataF$NO2)
+mn = mean(tsDataF$NO2)
+for (i in 1:length(tsDataF$NO2))
+{
+  if (tsDataF$NO2[i] > mn + 2*ds)
+  {
+    tsDataF$NO2[i] = mn + 2*ds
+  }
+  else 
+  {
+    if (tsDataF$NO2[i] < mn - 2*ds)
+    {
+      tsDataF$NO2[i] = mn - 2*ds
+    }
+  }
+}
+plot(tsDataF$NO2)
+plot(tsDataF$NO2[1:168])
+write.csv(tsDataF,'BDlimpia.csv')
+
+```
+Notamos que la serie de tiempo parece seguir una tendencia si lo observamos a lo largo de un día.
+### Creacion de la serie de tiempo y su descomposición
+```{r}
+library(tseries)
+serieT = ts(tsDataF$NO2, frequency = 24, start(2021,1))
+plot(serieT)
+T = decompose(serieT)
+plot(T)
+```
+
+
+### Datos sin estacionalidad
+
+```{r}
+y = T$x/T$seasonal
+plot(y)
+plot(y[1:24])
+```
+la tendencia en los datos generales parece igual de difusa que antes, pero es posible observar la diferencia al acercarnos a 24h
+
+#### Encontrando el modelo lineal para nuestros datos sin estacionalidad
+```{r}
+x = 1:7598
+x = x%%24 + 1
+z1 = y
+reg = lm(z1~x)
+summary(reg)
+reg
+```
+Dado que nuestro valor de \(R^2\) es tan bajo, es posible ver como nuestro modelo no se ajusta a nuestros datos
+### Analisis de los residuos
+```{r}
+plot(reg$fitted.values, reg$residuals)
+```
+
+No se observa una tendencia clara
+```{r}
+hist(reg$residuals)
+```
+
+\[H_0: p > \alpha = 0.05\]
+\[H_1: p < \alpha = 0.05\]
+
+```{r}
+library(nortest)
+ad.test(reg$residuals)
+```
+como \(p< \alpha = 0.05\) se rechaza \(H_0\)
+
+Es fácil observar la gran variabilidad que nuestros datos presentan por lo cuál, hacer un modelo que se ajuste a estos datos será sumamente complicado.
+
+```{r}
+f = function(x) 84.507-3.844*x
+e = NA
+for( i in x){
+  e[i] = f(i)-y[i]
+}
+CME = mean(e^2, na.rm = TRUE)
+CME
+```
+Obtenemos un error sumamente alto, gracias a la dispersión de nuestros datos, ya aún sin estacionalidad.
+
+### Promedios moviles
+
+```{r}
+pronostico = NA
+e = NA
+for(i in 1:7595){
+ pronostico[i+3] = (y[i]+y[i+1]+y[i+2])/3
+  e[i+3] = pronostico[i+3] - y[i+3]
+}
+Tabla = data.frame(x, y, pronostico,e^2)
+plot(y)
+lines(pronostico,col = 'red')
+```
+```{r}
+CME = mean(e^2, na.rm = TRUE)
+CME
+```
+Nuestro error resulta sumamente alto y mayor a nuestro modelo anterior.
+
+### Promedios moviles ponderados
+Ponderación: \[p_{y_1} = 1/8\]
+\[p_{y_2} = 1/4\]
+\[p_{y_3} = 5/8\]
+```{r}
+pronostico = NA
+e = NA
+for(i in 1:7595){
+ pronostico[i+3] = ((1/8)*(y[i])+(1/4)*(y[i+1])+(5/8)*(y[i+2]))/3
+  e[i+3] = pronostico[i+3] - y[i+3]
+}
+Tabla = data.frame(x, y, pronostico,e^2)
+plot(y)
+lines(pronostico,col = 'red')
+```
+```{r}
+CME = mean(e^2, na.rm = TRUE)
+CME
+```
+nuestro error sigue siendo alto, más no tan alto como nuestro modelo anterior, pero menor que nuestro primer modelo.
+
+### Suavizamiento exponencial
+```{r}
+library(collections)
+PQ_CME <- priority_queue()
+alpha = (0:100000)/100000
+for (j in alpha)
+{
+ rm(pronostico); rm(e)
+ pronostico = NA; e = NA
+ pronostico[1] = y[1]
+ pronostico[2] = y[1]
+ e[2] = y[2]-pronostico[2]
+ a = j + 0.01
+ for(i in 3:12){
+ pronostico[i] = a*y[i-1]+(1-a)*pronostico[i-1]
+ e[i] = pronostico[i] - y[i]
+ }
+ CME = mean(e^2, na.rm = TRUE)
+ PQ_CME$push(c(a, CME), priority = CME)
+}
+tam = PQ_CME$size()
+for (i in 1:(tam - 1))
+{
+ a = PQ_CME$pop()
+}
+PQ_CME$pop()
+```
+Vemos que nuestro modelo de suavizamiento exponencial, nos deja con un coeficiente muyu bajo, de 0.01 y con un error más alto del visto en nuestros modelos anteriores, por lo cual, se considera que el modelo lineal propuesto es el mejor hasta el momento.
+
+
+## referencias
+- manatimx (2020, December 13). Registran más de 2 mil muertes por contaminación ambiental en Puebla. Manatí. https://manati.mx/2020/12/13/muertes-por-contaminacion-del-aire-en-puebla/
+- CEMDA (s.f.). Impactos de la calidad del aire en la salud y en la economía de México. https://www.cemda.org.mx/wp-content/uploads/2014/07/respira-mexico-baja-resolucion.pdf
+
+
+
